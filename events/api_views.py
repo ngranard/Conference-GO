@@ -107,7 +107,6 @@ class ConferenceDetailEncoder(ModelEncoder):
         "updated",
         "max_presentations",
         "max_attendees",
-        "location",
     ]
     encoders = {
         "location": LocationListEncoder(),

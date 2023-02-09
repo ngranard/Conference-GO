@@ -22,6 +22,13 @@ class Status(models.Model):
 
 
 class Presentation(models.Model):
+    @classmethod
+    def create(cls, **kwargs):
+        kwargs["status"] = Status.objects.get(name="SUBMITTED")
+        presentation = cls(**kwargs)
+        presentation.save()
+        return presentation
+
     """
     The Presentation model represents a presentation that a person
     wants to give at the conference.
@@ -46,6 +53,7 @@ class Presentation(models.Model):
         related_name="presentations",
         on_delete=models.CASCADE,
     )
+
     def approve(self):
         status = Status.objects.get(name="APPROVED")
         self.status = status
@@ -62,9 +70,5 @@ class Presentation(models.Model):
     def __str__(self):
         return self.title
 
-
     class Meta:
         ordering = ("title",)  # Default ordering for presentation
-
-
-

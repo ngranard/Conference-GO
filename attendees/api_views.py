@@ -41,7 +41,7 @@ def api_list_attendees(request, conference_id):
         ]
     }
     """
-    attendees = Attendee.objects.all()
+    attendees = Attendee.objects.filter(conference=conference_id)
     return JsonResponse(
         {"attendees": attendees},
         encoder=AttendeeListEncoder,)

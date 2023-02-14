@@ -39,6 +39,7 @@ def get_weather_data(city, state):
         "lat": w_lat,
         "lon": w_lon,
         "appid": OPEN_WEATHER_API_KEY,
+        "units": "imperial"
     }
     response2 = requests.get(url2, headers=headers, params=params)
     weather2 = json.loads(response2.content)

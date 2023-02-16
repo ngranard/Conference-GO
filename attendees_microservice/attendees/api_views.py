@@ -1,8 +1,9 @@
 from django.http import JsonResponse
-from .models import Attendee, ConferenceVO
+from .models import Attendee, ConferenceVO, AccountVO
 from common.json import ModelEncoder
 from django.views.decorators.http import require_http_methods
 import json
+
 
 class ConferenceVODetailEncoder(ModelEncoder):
     model = ConferenceVO
@@ -27,39 +28,26 @@ class AttendeeDetailEncoder(ModelEncoder):
         "conference": ConferenceVODetailEncoder(),
     }
 
+    def get_extra_data(self, o):
+        count = AccountVO.objects.filter(email=o.email).count()
+        if count > 0:
+            return {"has_account": True}
+        else:
+            return {"has_account": False}
+
 
 @require_http_methods(["GET", "POST"])
 def api_list_attendees(request, conference_vo_id=None):
-    """
-    Lists the attendees names and the link to the attendee
-    for the specified conference id.
-
-    Returns a dictionary with a single key "attendees" which
-    is a list of attendee names and URLS. Each entry in the list
-    is a dictionary that contains the name of the attendee and
-    the link to the attendee's information.
-
-    {
-        "attendees": [
-            {
-                "name": attendee's name,
-                "href": URL to the attendee,
-            },
-            ...
-        ]
-    }
-    """
     if request.method == "GET":
         attendees = Attendee.objects.filter(conference=conference_vo_id)
         return JsonResponse(
             {"attendees": attendees},
             encoder=AttendeeListEncoder,
-            safe=False,
         )
     else:
         content = json.loads(request.body)
         try:
-            conference_href = f'/api/conferences/{conference_vo_id}'
+            conference_href = f"/api/conferences/{conference_vo_id}/"
             conference = ConferenceVO.objects.get(import_href=conference_href)
             content["conference"] = conference
         except ConferenceVO.DoesNotExist:
@@ -67,60 +55,36 @@ def api_list_attendees(request, conference_vo_id=None):
                 {"message": "Invalid conference id"},
                 status=400,
             )
-    attendee = Attendee.objects.create(**content)
-    return JsonResponse(
-        attendee,
-        encoder=AttendeeDetailEncoder,
-        safe=False,
-    )
-
-
-@require_http_methods(["DELETE", "GET", "PUT"])
-def api_show_attendee(request, id):
-    """
-    Returns the details for the Attendee model specified
-    by the id parameter.
-
-    This should return a dictionary with email, name,
-    company name, created, and conference properties for
-    the specified Attendee instance.
-
-    {
-        "email": the attendee's email,
-        "name": the attendee's name,
-        "company_name": the attendee's company's name,
-        "created": the date/time when the record was created,
-        "conference": {
-            "name": the name of the conference,
-            "href": the URL to the conference,
-        }
-    }
-    """
-    if request.method == "GET":
-        attendee = Attendee.objects.get(id=id)
+        attendee = Attendee.objects.create(**content)
         return JsonResponse(
             attendee,
             encoder=AttendeeDetailEncoder,
             safe=False,
         )
+
+
+@require_http_methods(["GET", "PUT", "DELETE"])
+def api_show_attendee(request, id):
+    if request.method == "GET":
+        try:
+            attendee = Attendee.objects.get(id=id)
+            return JsonResponse(
+                attendee, encoder=AttendeeDetailEncoder, safe=False
+            )
+        except Attendee.DoesNotExist:
+            return JsonResponse({"message": "Attendee not found"}, status=400)
     elif request.method == "DELETE":
         count, _ = Attendee.objects.filter(id=id).delete()
-        return JsonResponse({"deleted": count > 0})  # deleted works
+        return JsonResponse({"message": count > 0})
     else:
         content = json.loads(request.body)
         try:
-            if "attendee" in content:
-                attendee = Attendee.objects.get(id=id)
-                content["attendee"] = attendee
-        except Attendee.DoesNotExist:
+            Attendee.objects.filter(id=id).update(**content)
+            attendee = Attendee.objects.get(id=id)
             return JsonResponse(
-                {"message": "Invalid attendee"},
-                status=400,
+                attendee,
+                encoder=AttendeeDetailEncoder,
+                safe=False,
             )
-        Attendee.objects.filter(id=id).update(**content)
-        attendee = Attendee.objects.get(id=id)
-        return JsonResponse(
-            attendee,
-            encoder=AttendeeDetailEncoder,
-            safe=False,
-        )
+        except Attendee.DoesNotExist:
+            return JsonResponse({"message": "Attendee not found"}, status=400)
